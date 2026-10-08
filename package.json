@@ -1,0 +1,23 @@
+{
+  "name": "smartmart",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev:api & npm run dev:web",
+    "dev:api": "npm run dev -w @smartmart/api",
+    "dev:web": "npm run dev -w @smartmart/web",
+    "db:push": "npm run push -w @smartmart/db",
+    "db:studio": "npm run studio -w @smartmart/db",
+    "db:create-admin": "npm run create-admin -w @smartmart/db",
+    "db:reset": "npm run reset -w @smartmart/db",
+    "db:tx-check": "npm run tx-check -w @smartmart/db",
+    "typecheck": "npm run typecheck -ws --if-present"
+  },
+  "devDependencies": {
+    "drizzle-orm": "^0.45.3"
+  }
+}
