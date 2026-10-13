@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, customer, eq, asc, ilike, desc } from "@smartmart/db";
+import { db, customer, user, eq, asc, ilike } from "@smartmart/db";
 import { requireAdmin } from "../../middleware/auth.js";
 import { notFound } from "../../utils/httpError.js";
 
@@ -10,16 +10,21 @@ router.use(requireAdmin);
 router.get("/", async (req, res, next) => {
   try {
     const { search } = req.query as { search?: string };
+    const query = db
+      .select({ 
+        customerId: customer.customerId, 
+        name: user.name, 
+        email: user.email, 
+        phone: customer.phone, 
+        address: customer.address, 
+        createdAt: customer.createdAt 
+      })
+      .from(customer)
+      .innerJoin(user, eq(customer.userId, user.id));
+
     const rows = search
-      ? await db
-          .select({ customerId: customer.customerId, name: customer.name, email: customer.email, phone: customer.phone, address: customer.address, createdAt: customer.createdAt })
-          .from(customer)
-          .where(ilike(customer.name, `%${search}%`))
-          .orderBy(asc(customer.name))
-      : await db
-          .select({ customerId: customer.customerId, name: customer.name, email: customer.email, phone: customer.phone, address: customer.address, createdAt: customer.createdAt })
-          .from(customer)
-          .orderBy(asc(customer.name));
+      ? await query.where(ilike(user.name, `%${search}%`)).orderBy(asc(user.name))
+      : await query.orderBy(asc(user.name));
     res.json(rows);
   } catch (err) { next(err); }
 });
@@ -29,8 +34,16 @@ router.get("/:id", async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const [row] = await db
-      .select({ customerId: customer.customerId, name: customer.name, email: customer.email, phone: customer.phone, address: customer.address, createdAt: customer.createdAt })
+      .select({ 
+        customerId: customer.customerId, 
+        name: user.name, 
+        email: user.email, 
+        phone: customer.phone, 
+        address: customer.address, 
+        createdAt: customer.createdAt 
+      })
       .from(customer)
+      .innerJoin(user, eq(customer.userId, user.id))
       .where(eq(customer.customerId, id));
     if (!row) return next(notFound("Customer not found"));
     res.json(row);

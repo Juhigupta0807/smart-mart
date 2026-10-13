@@ -8,12 +8,15 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, "../../../../.env") });
 
 const envSchema = z.object({
-  PORT: z.string().default("5001"),
-  JWT_SECRET: z.string().min(16, "JWT_SECRET must be at least 16 characters long"),
-  JWT_EXPIRES_IN: z.string().default("7d"),
-  WEB_ORIGIN: z.string().default("http://localhost:3000"),
+  BETTER_AUTH_SECRET: z.string().min(32),
+  BETTER_AUTH_URL: z.string().url(),
+  WEB_ORIGIN: z.string().url(),
+  API_URL: z.string().url().optional(),
+  GOOGLE_CLIENT_ID: z.string().min(1),
+  GOOGLE_CLIENT_SECRET: z.string().min(1),
+  PORT: z.coerce.number().default(5001),
+  DATABASE_URL: z.string().url(),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
 });
 
 const _env = envSchema.safeParse(process.env);

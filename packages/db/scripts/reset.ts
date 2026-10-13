@@ -15,10 +15,10 @@ async function main() {
     }
 
     await db.execute(sql`
-      TRUNCATE payment, order_details, orders, cart, supplier_order_item, supplier_order, inventory, product, supplier, category, customer, admin RESTART IDENTITY CASCADE
+      TRUNCATE payment, order_details, orders, cart, supplier_order_item, supplier_order, inventory, product, supplier, category, customer, admin, session, account, verification, "user" RESTART IDENTITY CASCADE
     `);
 
-    console.log("All tables emptied. Run db:create-admin to add an admin.");
+    console.log("All tables emptied. Run admin:create to add an admin.");
   } catch (error) {
     console.error("Error resetting database:", error);
     process.exit(1);

@@ -11,20 +11,18 @@
   "scripts": {
     "push": "drizzle-kit push",
     "studio": "drizzle-kit studio",
-    "create-admin": "tsx scripts/create-admin.ts",
+
     "reset": "tsx scripts/reset.ts",
     "tx-check": "tsx scripts/tx-check.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
-    "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.36.4",
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.14.0",
     "@types/ws": "^8.5.12",
     "drizzle-kit": "^0.28.1",
