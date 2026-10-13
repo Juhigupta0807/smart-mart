@@ -14,6 +14,7 @@ import {
   LogOut 
 } from "lucide-react";
 import { fetchApi } from "@/lib/api";
+import { authClient } from "@/lib/auth-client";
 import { useEffect, useState } from "react";
 
 const NAV_ITEMS = [
@@ -32,20 +33,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const [admin, setAdmin] = useState<{ name: string; email: string } | null>(null);
 
-  useEffect(() => {
-    fetchApi<any>("/api/auth/admin/me")
-      .then((data) => setAdmin(data))
-      .catch(() => router.push("/admin/login"));
-  }, [router]);
+  // In apps/web/src/app/admin/layout.tsx
+useEffect(() => {
+  fetchApi<any>("/api/admin/me")
+    .then((data) => setAdmin(data))
+    .catch(() => router.push("/admin/login"));
+}, [router]);
 
-  const handleLogout = async () => {
-    try {
-      await fetchApi("/api/auth/admin/logout", { method: "POST" });
-      router.push("/admin/login");
-    } catch (err) {
-      console.error(err);
-    }
-  };
+const handleLogout = async () => {
+  try {
+    await authClient.signOut();
+    router.push("/admin/login");
+  } catch (err) {
+    console.error(err);
+  }
+};
+
 
   if (!admin && pathname !== "/admin/login") {
     return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-500">Loading...</div>;

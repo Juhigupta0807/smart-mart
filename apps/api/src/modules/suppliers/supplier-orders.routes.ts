@@ -45,7 +45,7 @@ router.post("/", async (req, res, next) => {
       const totalCost = items.reduce((sum, it) => sum + it.quantity * it.unitCost, 0);
       const [order] = await tx.insert(supplierOrder).values({
         supplierId: Number(supplierId),
-        adminId: req.admin!.adminId,
+        adminId: req.auth!.adminId!,
         totalCost: String(totalCost),
         notes: notes?.trim() || null,
       }).returning();

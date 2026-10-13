@@ -11,7 +11,8 @@ export async function fetchApi<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${process.env.NEXT_PUBLIC_API_URL}${endpoint}`;
+  // Relative URL so it proxies through Next.js
+  const url = endpoint;
   
   const headers = new Headers(options.headers);
   if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
