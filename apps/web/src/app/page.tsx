@@ -9,7 +9,6 @@ import { FeaturedProducts } from "@/components/store/FeaturedProducts";
 import { PromoBanner } from "@/components/store/PromoBanner";
 import { WhyChooseSmartMart } from "@/components/store/WhyChooseSmartMart";
 import { HomeFooter } from "@/components/store/HomeFooter";
-import { Toast } from "@/components/store/Toast";
 import {
   MOCK_CATEGORIES,
   MOCK_FEATURED_PRODUCTS,
@@ -18,19 +17,18 @@ import {
   HERO_STATS,
 } from "@/data/mockStoreData";
 import { Product, Category } from "@/types/store";
+import { useCart } from "@/context/CartContext";
 
 export default function HomePage() {
-  const [cartCount, setCartCount] = useState(2);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const { addToCart, showToast } = useCart();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const handleAddToCart = (product: Product) => {
-    setCartCount((prev) => prev + 1);
-    setToastMessage(`Added "${product.productName}" to cart (Demo mode)`);
+    addToCart(product, 1);
   };
 
   const handleToggleFavorite = (product: Product, isFav: boolean) => {
-    setToastMessage(
+    showToast(
       isFav
         ? `Added "${product.productName}" to wishlist`
         : `Removed "${product.productName}" from wishlist`
@@ -39,17 +37,13 @@ export default function HomePage() {
 
   const handleSelectCategory = (category: Category) => {
     setSelectedCategory(category.categoryName);
-    setToastMessage(`Filtered by category: "${category.categoryName}" (UI preview)`);
+    showToast(`Filtered by category: "${category.categoryName}"`);
   };
 
   const handleSearch = (query: string) => {
     if (query.trim()) {
-      setToastMessage(`Searching for "${query}" (UI preview)`);
+      showToast(`Searching for "${query}"`);
     }
-  };
-
-  const handleCartClick = () => {
-    setToastMessage(`Your cart contains ${cartCount} items (UI preview)`);
   };
 
   // Filter products if a category is selected (UI demonstration)
@@ -64,8 +58,6 @@ export default function HomePage() {
       
       {/* A. Top Navigation */}
       <Navbar
-        cartCount={cartCount}
-        onCartClick={handleCartClick}
         onSearch={handleSearch}
       />
 
@@ -90,7 +82,7 @@ export default function HomePage() {
           onToggleFavorite={handleToggleFavorite}
           onViewAllClick={() => {
             setSelectedCategory(null);
-            setToastMessage("Showing all popular picks");
+            showToast("Showing all popular picks");
           }}
         />
 
@@ -103,9 +95,6 @@ export default function HomePage() {
 
       {/* H. Homepage Footer (Only on Homepage) */}
       <HomeFooter />
-
-      {/* Floating Demo Feedback Toast */}
-      <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
 
     </div>
   );

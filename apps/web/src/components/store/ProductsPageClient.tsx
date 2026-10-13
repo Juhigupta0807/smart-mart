@@ -7,10 +7,10 @@ import { ProductToolbar } from "@/components/store/ProductToolbar";
 import { ProductFilters } from "@/components/store/ProductFilters";
 import { ProductGrid } from "@/components/store/ProductGrid";
 import { Pagination } from "@/components/store/Pagination";
-import { Toast } from "@/components/store/Toast";
 import { ALL_PRODUCTS } from "@/data/mockStoreData";
 import { Product, SortOption, ViewMode } from "@/types/store";
 import { X, Filter } from "lucide-react";
+import { useCart } from "@/context/CartContext";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -33,9 +33,8 @@ export function ProductsPageClient() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  // Cart & Toast state
-  const [cartCount, setCartCount] = useState(3);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  // Cart from Global Context
+  const { addToCart, showToast } = useCart();
 
   // Keep in sync if URL params change
   useEffect(() => {
@@ -129,18 +128,17 @@ export function ProductsPageClient() {
     setAvailability("all");
     setSortBy("relevance");
     setCurrentPage(1);
-    setToastMessage("All filters have been reset");
+    showToast("All filters have been reset");
   };
 
   // Add to Cart handler
   const handleAddToCart = (product: Product) => {
-    setCartCount((prev) => prev + 1);
-    setToastMessage(`Added "${product.productName}" to cart (Demo mode)`);
+    addToCart(product, 1);
   };
 
   // Wishlist handler
   const handleToggleFavorite = (product: Product, isFav: boolean) => {
-    setToastMessage(
+    showToast(
       isFav
         ? `Added "${product.productName}" to wishlist`
         : `Removed "${product.productName}" from wishlist`
@@ -159,12 +157,8 @@ export function ProductsPageClient() {
       
       {/* 1. Navbar */}
       <Navbar
-        cartCount={cartCount}
         searchQuery={searchQuery}
         onSearch={handleSearch}
-        onCartClick={() =>
-          setToastMessage(`Your cart contains ${cartCount} items (UI preview)`)
-        }
       />
 
       {/* 2. Main Shop Content */}
@@ -284,9 +278,6 @@ export function ProductsPageClient() {
           </div>
         </div>
       )}
-
-      {/* Toast Feedback */}
-      <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
 
     </div>
   );

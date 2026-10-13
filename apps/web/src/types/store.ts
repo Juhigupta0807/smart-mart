@@ -6,18 +6,35 @@ export interface Category {
   itemCount?: number;
 }
 
+export interface NutritionalInfo {
+  servingSize?: string;
+  calories?: string;
+  protein?: string;
+  carbs?: string;
+  fat?: string;
+  fiber?: string;
+}
+
 export interface Product {
   productId: number;
   productName: string;
   description?: string | null;
+  fullDescription?: string;
   price: number;
   packageSize?: string;
   imageUrl: string;
+  images?: string[];
   categoryId: number;
   categoryName?: string;
   currentStock?: number;
   isActive: boolean;
   isPopular?: boolean;
+  unitPrice?: string;
+  supplier?: string;
+  expiryDate?: string;
+  highlights?: string[];
+  storageInstructions?: string;
+  nutritionalInfo?: NutritionalInfo;
 }
 
 export interface BenefitItem {

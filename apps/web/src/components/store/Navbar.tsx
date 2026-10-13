@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Search, ShoppingBag, Menu, X, ChevronDown, User as UserIcon } from "lucide-react";
 
+import { useCart } from "@/context/CartContext";
+
 interface NavbarProps {
   cartCount?: number;
   onCartClick?: () => void;
@@ -14,12 +16,14 @@ interface NavbarProps {
 }
 
 export function Navbar({
-  cartCount = 2,
+  cartCount,
   onCartClick,
   searchQuery: controlledSearchQuery,
   onSearch,
-  user,
+  user = { name: "Juhi", avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" },
 }: NavbarProps) {
+  const { totalCount } = useCart();
+  const effectiveCartCount = cartCount !== undefined ? cartCount : totalCount;
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -149,18 +153,19 @@ export function Navbar({
           {/* Right Actions: Cart, Login, Register or Customer Area */}
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Cart Button */}
-            <button
+            <Link
+              href="/cart"
               onClick={onCartClick}
-              aria-label={`Shopping Cart with ${cartCount} items`}
+              aria-label={`Shopping Cart with ${effectiveCartCount} items`}
               className="relative p-2.5 rounded-full hover:bg-stone-100 text-stone-700 hover:text-stone-900 transition-colors cursor-pointer"
             >
               <ShoppingBag className="w-5 h-5 text-stone-700" />
-              {cartCount > 0 && (
+              {effectiveCartCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 bg-[#1E4D38] text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-xs">
-                  {cartCount}
+                  {effectiveCartCount}
                 </span>
               )}
-            </button>
+            </Link>
 
             {/* Auth Buttons or Account Dropdown */}
             {user ? (

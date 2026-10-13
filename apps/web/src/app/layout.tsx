@@ -21,13 +21,17 @@ export const metadata: Metadata = {
   description: "Online supermarket and inventory management system for fresh groceries, everyday essentials and more.",
 };
 
+import { CartProvider } from "@/context/CartContext";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
       className={`${jakarta.variable} ${caveat.variable} h-full antialiased font-sans`}
     >
-      <body className="min-h-full flex flex-col bg-cream-100 text-charcoal-900">{children}</body>
+      <body className="min-h-full flex flex-col bg-cream-100 text-charcoal-900">
+        <CartProvider>{children}</CartProvider>
+      </body>
     </html>
   );
 }
