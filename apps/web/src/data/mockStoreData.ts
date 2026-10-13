@@ -99,7 +99,7 @@ export const ALL_PRODUCTS: Product[] = [
   },
   {
     productId: 102,
-    productName: "Amul Taaza Milk",
+    productName: "Amul Taaza Milk 1L",
     description: "Farm-fresh pasteurized toned milk rich in calcium and natural proteins.",
     fullDescription: "Amul Taaza fresh toned milk is processed with ultra-high temperature standards to deliver wholesome taste and balanced nutrition for the whole family.",
     packageSize: "1 L",
@@ -135,7 +135,7 @@ export const ALL_PRODUCTS: Product[] = [
   },
   {
     productId: 103,
-    productName: "Fresh Banana",
+    productName: "Fresh Banana 1kg",
     description: "Naturally ripened sweet and creamy bananas picked from organic orchards.",
     fullDescription: "Premium Grade-A Cavendish bananas ripened naturally in temperature-controlled chambers without harmful chemicals.",
     packageSize: "1 kg",
@@ -176,7 +176,7 @@ export const ALL_PRODUCTS: Product[] = [
   },
   {
     productId: 105,
-    productName: "Lays Classic Salted",
+    productName: "Lays Classic Salted 52g",
     description: "Crispy golden thinly sliced potato chips sprinkled with pristine sea salt.",
     packageSize: "52 g",
     unitPrice: "₹38.4 per 100g",
