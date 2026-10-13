@@ -1,0 +1,225 @@
+"use client";
+
+import React, { useState } from "react";
+import Link from "next/link";
+import { Search, ShoppingBag, Menu, X } from "lucide-react";
+
+interface NavbarProps {
+  cartCount?: number;
+  onCartClick?: () => void;
+  onSearch?: (query: string) => void;
+}
+
+export function Navbar({ cartCount = 2, onCartClick, onSearch }: NavbarProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (onSearch) {
+      onSearch(searchQuery);
+    }
+  };
+
+  return (
+    <header className="sticky top-0 z-50 bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#EDE6DC]/70 transition-all">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-20 gap-4">
+          
+          {/* Brand Logo */}
+          <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
+            <div className="w-10 h-10 rounded-xl bg-[#E7F2E4] flex items-center justify-center text-[#1E4D38] transition-transform group-hover:scale-105 shadow-xs">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="text-[#1E4D38]"
+              >
+                {/* Cart Body */}
+                <path
+                  d="M3 3H5.2L7.3 14.5C7.4 15.1 7.9 15.5 8.5 15.5H18.5C19.1 15.5 19.6 15.1 19.7 14.5L21 7.5H6"
+                  stroke="#1E4D38"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <circle cx="9" cy="19.5" r="1.5" fill="#1E4D38" />
+                <circle cx="18" cy="19.5" r="1.5" fill="#1E4D38" />
+                {/* Fresh Sprout Leaf / Carrot Accent */}
+                <path
+                  d="M14 4.5C14 4.5 16 3 18 4C18.5 6 16.5 8 16.5 8"
+                  stroke="#2E7D32"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M15.5 6L13.5 8"
+                  stroke="#F97316"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+            <span className="text-2xl font-bold tracking-tight text-[#1A4731]">
+              Smart<span className="text-[#2B6E48]">Mart</span>
+            </span>
+          </Link>
+
+          {/* Center Navigation Links (Desktop) */}
+          <nav className="hidden lg:flex items-center gap-1.5">
+            <Link
+              href="/"
+              className="px-4 py-1.5 text-sm font-semibold rounded-full bg-[#E5EFE2] text-[#1E4D38] transition-colors"
+            >
+              Home
+            </Link>
+            <Link
+              href="#products"
+              className="px-4 py-1.5 text-sm font-medium text-stone-600 hover:text-stone-900 rounded-full hover:bg-stone-100/70 transition-colors"
+            >
+              Products
+            </Link>
+            <Link
+              href="#about"
+              className="px-4 py-1.5 text-sm font-medium text-stone-600 hover:text-stone-900 rounded-full hover:bg-stone-100/70 transition-colors"
+            >
+              About
+            </Link>
+            <Link
+              href="#contact"
+              className="px-4 py-1.5 text-sm font-medium text-stone-600 hover:text-stone-900 rounded-full hover:bg-stone-100/70 transition-colors"
+            >
+              Contact
+            </Link>
+          </nav>
+
+          {/* Search Bar */}
+          <form
+            onSubmit={handleSearchSubmit}
+            className="hidden md:flex items-center flex-1 max-w-md relative mx-2"
+          >
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+              <Search className="w-4 h-4" />
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search for groceries, beverages, household items..."
+              className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm bg-[#FCFAF7] border border-stone-200/90 rounded-full placeholder:text-stone-400 text-stone-800 focus:outline-none focus:ring-2 focus:ring-[#286345]/20 focus:border-[#286345] transition-all shadow-2xs"
+            />
+          </form>
+
+          {/* Right Actions: Cart, Login, Register */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Cart Button */}
+            <button
+              onClick={onCartClick}
+              aria-label={`Shopping Cart with ${cartCount} items`}
+              className="relative p-2.5 rounded-full hover:bg-stone-100 text-stone-700 hover:text-stone-900 transition-colors cursor-pointer"
+            >
+              <ShoppingBag className="w-5 h-5 text-stone-700" />
+              {cartCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 bg-[#1E4D38] text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-xs">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+
+            {/* Auth Buttons */}
+            <div className="hidden sm:flex items-center gap-2">
+              <Link
+                href="/admin/login"
+                className="px-4 py-2 text-sm font-medium text-stone-700 bg-[#F1ECE3] hover:bg-[#E8E1D5] rounded-full transition-colors"
+              >
+                Login
+              </Link>
+              <Link
+                href="/admin/login"
+                className="px-4 py-2 text-sm font-semibold text-white bg-[#1E4D38] hover:bg-[#163C2B] rounded-full shadow-xs transition-colors"
+              >
+                Register
+              </Link>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 rounded-lg text-stone-700 hover:bg-stone-100 transition"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Search Row (visible on small mobile screens) */}
+        <div className="md:hidden pb-3">
+          <form onSubmit={handleSearchSubmit} className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
+              <Search className="w-4 h-4" />
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search groceries..."
+              className="w-full pl-10 pr-4 py-2 text-xs bg-[#FCFAF7] border border-stone-200/90 rounded-full text-stone-800 focus:outline-none focus:ring-2 focus:ring-[#286345]/20 focus:border-[#286345]"
+            />
+          </form>
+        </div>
+
+        {/* Mobile Dropdown Menu */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden py-4 border-t border-stone-200/60 flex flex-col gap-2 bg-[#FAF7F2]">
+            <Link
+              href="/"
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#E5EFE2] text-[#1E4D38]"
+            >
+              Home
+            </Link>
+            <Link
+              href="#products"
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-stone-700 hover:bg-stone-100"
+            >
+              Products
+            </Link>
+            <Link
+              href="#about"
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-stone-700 hover:bg-stone-100"
+            >
+              About
+            </Link>
+            <Link
+              href="#contact"
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-stone-700 hover:bg-stone-100"
+            >
+              Contact
+            </Link>
+            <div className="pt-2 flex items-center gap-2 sm:hidden border-t border-stone-200/50 mt-2">
+              <Link
+                href="/admin/login"
+                className="flex-1 text-center py-2 text-sm font-medium text-stone-700 bg-[#F1ECE3] rounded-full"
+              >
+                Login
+              </Link>
+              <Link
+                href="/admin/login"
+                className="flex-1 text-center py-2 text-sm font-semibold text-white bg-[#1E4D38] rounded-full shadow-xs"
+              >
+                Register
+              </Link>
+            </div>
+          </div>
+        )}
+      </div>
+    </header>
+  );
+}
