@@ -2,24 +2,49 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Search, ShoppingBag, Menu, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Search, ShoppingBag, Menu, X, ChevronDown, User as UserIcon } from "lucide-react";
 
 interface NavbarProps {
   cartCount?: number;
   onCartClick?: () => void;
+  searchQuery?: string;
   onSearch?: (query: string) => void;
+  user?: { name: string; avatarUrl?: string } | null;
 }
 
-export function Navbar({ cartCount = 2, onCartClick, onSearch }: NavbarProps) {
+export function Navbar({
+  cartCount = 2,
+  onCartClick,
+  searchQuery: controlledSearchQuery,
+  onSearch,
+  user,
+}: NavbarProps) {
+  const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [localSearchQuery, setLocalSearchQuery] = useState("");
+
+  const activeSearchQuery = controlledSearchQuery !== undefined ? controlledSearchQuery : localSearchQuery;
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (onSearch) {
-      onSearch(searchQuery);
+      onSearch(activeSearchQuery);
+    } else if (activeSearchQuery.trim()) {
+      router.push(`/products?search=${encodeURIComponent(activeSearchQuery.trim())}`);
     }
   };
+
+  const handleSearchChange = (val: string) => {
+    setLocalSearchQuery(val);
+    if (onSearch) {
+      onSearch(val);
+    }
+  };
+
+  const isHome = pathname === "/";
+  const isProducts = pathname.startsWith("/products");
 
   return (
     <header className="sticky top-0 z-50 bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#EDE6DC]/70 transition-all">
@@ -72,24 +97,32 @@ export function Navbar({ cartCount = 2, onCartClick, onSearch }: NavbarProps) {
           <nav className="hidden lg:flex items-center gap-1.5">
             <Link
               href="/"
-              className="px-4 py-1.5 text-sm font-semibold rounded-full bg-[#E5EFE2] text-[#1E4D38] transition-colors"
+              className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${
+                isHome
+                  ? "bg-[#E5EFE2] text-[#1E4D38]"
+                  : "text-stone-600 hover:text-stone-900 hover:bg-stone-100/70"
+              }`}
             >
               Home
             </Link>
             <Link
-              href="#products"
-              className="px-4 py-1.5 text-sm font-medium text-stone-600 hover:text-stone-900 rounded-full hover:bg-stone-100/70 transition-colors"
+              href="/products"
+              className={`px-4 py-1.5 text-sm font-semibold rounded-full transition-colors ${
+                isProducts
+                  ? "bg-[#E5EFE2] text-[#1E4D38]"
+                  : "text-stone-600 hover:text-stone-900 hover:bg-stone-100/70"
+              }`}
             >
               Products
             </Link>
             <Link
-              href="#about"
+              href="/#about"
               className="px-4 py-1.5 text-sm font-medium text-stone-600 hover:text-stone-900 rounded-full hover:bg-stone-100/70 transition-colors"
             >
               About
             </Link>
             <Link
-              href="#contact"
+              href="/#contact"
               className="px-4 py-1.5 text-sm font-medium text-stone-600 hover:text-stone-900 rounded-full hover:bg-stone-100/70 transition-colors"
             >
               Contact
@@ -106,14 +139,14 @@ export function Navbar({ cartCount = 2, onCartClick, onSearch }: NavbarProps) {
             </div>
             <input
               type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={activeSearchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Search for groceries, beverages, household items..."
               className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm bg-[#FCFAF7] border border-stone-200/90 rounded-full placeholder:text-stone-400 text-stone-800 focus:outline-none focus:ring-2 focus:ring-[#286345]/20 focus:border-[#286345] transition-all shadow-2xs"
             />
           </form>
 
-          {/* Right Actions: Cart, Login, Register */}
+          {/* Right Actions: Cart, Login, Register or Customer Area */}
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Cart Button */}
             <button
@@ -129,21 +162,41 @@ export function Navbar({ cartCount = 2, onCartClick, onSearch }: NavbarProps) {
               )}
             </button>
 
-            {/* Auth Buttons */}
-            <div className="hidden sm:flex items-center gap-2">
-              <Link
-                href="/admin/login"
-                className="px-4 py-2 text-sm font-medium text-stone-700 bg-[#F1ECE3] hover:bg-[#E8E1D5] rounded-full transition-colors"
-              >
-                Login
-              </Link>
-              <Link
-                href="/admin/login"
-                className="px-4 py-2 text-sm font-semibold text-white bg-[#1E4D38] hover:bg-[#163C2B] rounded-full shadow-xs transition-colors"
-              >
-                Register
-              </Link>
-            </div>
+            {/* Auth Buttons or Account Dropdown */}
+            {user ? (
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-stone-200/90 shadow-2xs cursor-pointer hover:border-stone-300 transition-colors">
+                {user.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt={user.name}
+                    className="w-7 h-7 rounded-full object-cover border border-stone-200"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-[#E5EFE2] text-[#1E4D38] flex items-center justify-center font-bold text-xs">
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span className="text-xs sm:text-sm font-semibold text-stone-800">
+                  Hi, {user.name}
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
+              </div>
+            ) : (
+              <div className="hidden sm:flex items-center gap-2">
+                <Link
+                  href="/admin/login"
+                  className="px-4 py-2 text-sm font-medium text-stone-700 bg-[#F1ECE3] hover:bg-[#E8E1D5] rounded-full transition-colors"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/admin/login"
+                  className="px-4 py-2 text-sm font-semibold text-white bg-[#1E4D38] hover:bg-[#163C2B] rounded-full shadow-xs transition-colors"
+                >
+                  Register
+                </Link>
+              </div>
+            )}
 
             {/* Mobile Menu Button */}
             <button
@@ -164,8 +217,8 @@ export function Navbar({ cartCount = 2, onCartClick, onSearch }: NavbarProps) {
             </div>
             <input
               type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={activeSearchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Search groceries..."
               className="w-full pl-10 pr-4 py-2 text-xs bg-[#FCFAF7] border border-stone-200/90 rounded-full text-stone-800 focus:outline-none focus:ring-2 focus:ring-[#286345]/20 focus:border-[#286345]"
             />
@@ -178,14 +231,18 @@ export function Navbar({ cartCount = 2, onCartClick, onSearch }: NavbarProps) {
             <Link
               href="/"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#E5EFE2] text-[#1E4D38]"
+              className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+                isHome ? "bg-[#E5EFE2] text-[#1E4D38]" : "text-stone-700 hover:bg-stone-100"
+              }`}
             >
               Home
             </Link>
             <Link
-              href="#products"
+              href="/products"
               onClick={() => setMobileMenuOpen(false)}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-stone-700 hover:bg-stone-100"
+              className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+                isProducts ? "bg-[#E5EFE2] text-[#1E4D38]" : "text-stone-700 hover:bg-stone-100"
+              }`}
             >
               Products
             </Link>

@@ -40,3 +40,20 @@ export interface HeroStat {
   label: string;
   value: string;
 }
+
+export type SortOption =
+  | "relevance"
+  | "price-low-high"
+  | "price-high-low"
+  | "name-asc"
+  | "newest";
+
+export type ViewMode = "grid" | "list";
+
+export interface FilterState {
+  category: string;
+  maxPrice: number;
+  availability: "all" | "in-stock" | "out-of-stock";
+  sortBy: SortOption;
+  searchQuery: string;
+}
