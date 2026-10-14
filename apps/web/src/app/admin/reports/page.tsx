@@ -1,481 +1,666 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import Link from "next/link";
-import { 
-  Calendar, 
-  ChevronDown, 
-  Box, 
-  Users, 
-  TrendingUp, 
-  DollarSign, 
-  ShoppingBag 
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { fetchApi, ApiError } from "@/lib/api";
+import { formatINR, formatDate } from "@/lib/format";
+import {
+  BarChart3,
+  Calendar,
+  DollarSign,
+  Package,
+  TrendingUp,
+  PieChart,
+  RefreshCw,
+  AlertCircle,
+  Clock,
+  CheckCircle2,
+  Truck,
+  XCircle,
+  Filter,
+  ShoppingBag,
+  Award
 } from "lucide-react";
-import { fetchApi } from "@/lib/api";
+import { OrderSummary, OrderStatus } from "@/types/orders";
 
-export default function AdminReportsPage() {
-  const [data, setData] = useState<any>(null);
-  const [salesData, setSalesData] = useState<any[]>([]);
+interface ProductSalePerformance {
+  productId: number;
+  productName: string;
+  totalQty: number;
+  totalRevenue: string;
+}
+
+interface DashboardReportsData {
+  totalOrders: number;
+  totalRevenue: string;
+  totalCustomers: number;
+  totalProducts: number;
+  ordersByStatus: {
+    status: OrderStatus;
+    count: number;
+  }[];
+}
+
+interface DailyTrendPoint {
+  dateKey: string;
+  label: string;
+  orders: number;
+  revenue: number;
+}
+
+export default function ReportsAnalyticsPage() {
+  const [salesData, setSalesData] = useState<ProductSalePerformance[]>([]);
+  const [dashboardData, setDashboardData] = useState<DashboardReportsData | null>(null);
+  const [allOrders, setAllOrders] = useState<OrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState("Last 30 Days");
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    Promise.all([
-      fetchApi<any>("/api/reports/dashboard").catch(() => null),
-      fetchApi<any[]>("/api/reports/sales").catch(() => []),
-    ])
-      .then(([dash, sales]) => {
-        setData(dash);
-        setSalesData(sales || []);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  // Date filters
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
+  const [activePreset, setActivePreset] = useState<string>("all");
 
-  const totalRevenue = data?.totalRevenue
-    ? Number(data.totalRevenue).toLocaleString("en-IN")
-    : "24,560";
-  const totalOrders = data?.totalOrders ?? 128;
-  const totalCustomers = data?.totalCustomers ?? 98;
-  const averageOrderValue = 192;
+  // Chart view toggle
+  const [trendMetric, setTrendMetric] = useState<"revenue" | "orders">("revenue");
+  const [hoveredPoint, setHoveredPoint] = useState<DailyTrendPoint | null>(null);
 
-  // Category distribution data (Screen 3)
-  const categorySales = [
-    { name: "Grains", amount: "8,920", pct: 36, color: "#207B4A" },
-    { name: "Dairy", amount: "5,240", pct: 21, color: "#3173DC" },
-    { name: "Snacks", amount: "3,420", pct: 14, color: "#E59E28" },
-    { name: "Fruits", amount: "2,960", pct: 12, color: "#E45E36" },
-    { name: "Beverages", amount: "2,120", pct: 9, color: "#C0392B" },
-    { name: "Others", amount: "1,900", pct: 8, color: "#8E44AD" },
-  ];
+  const applyPreset = (preset: "7d" | "30d" | "ytd" | "all") => {
+    setActivePreset(preset);
+    const now = new Date();
 
-  // Order status distribution
-  const orderStatuses = [
-    { name: "Delivered", count: 78, pct: 61, color: "#207B4A" },
-    { name: "Out for Delivery", count: 22, pct: 17, color: "#E59E28" },
-    { name: "Processing", count: 18, pct: 14, color: "#3173DC" },
-    { name: "Cancelled", count: 10, pct: 8, color: "#C0392B" },
-  ];
+    if (preset === "all") {
+      setFromDate("");
+      setToDate("");
+      return;
+    }
 
-  // Top selling products table
-  const topProducts = [
-    {
-      rank: 1,
-      name: "Amul Taaza Milk 1L",
-      category: "Dairy",
-      units: 320,
-      revenue: "₹21,760",
-      image: "https://images-na.ssl-images-amazon.com/images/P/B018E0HQPE.01._SCLZZZZZZZ_SX500_.jpg",
-    },
-    {
-      rank: 2,
-      name: "Daawat Basmati Rice 5kg",
-      category: "Grains",
-      units: 180,
-      revenue: "₹89,820",
-      image: "https://www.bbassets.com/media/uploads/p/l/255843_21-daawat-super-basmati-5-kg.jpg",
-    },
-    {
-      rank: 3,
-      name: "Lays Classic Salted 52g",
-      category: "Snacks",
-      units: 150,
-      revenue: "₹3,000",
-      image: "https://m.media-amazon.com/images/I/71HqDWJt23L._SL1500_.jpg",
-    },
-    {
-      rank: 4,
-      name: "Fresh Banana 1kg",
-      category: "Fruits",
-      units: 120,
-      revenue: "₹4,800",
-      image: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=600&q=80",
-    },
-    {
-      rank: 5,
-      name: "Nestle Maggi 70g",
-      category: "Noodles",
-      units: 110,
-      revenue: "₹1,540",
-      image: "https://m.media-amazon.com/images/I/71wK8nS4FzL._SL1500_.jpg",
-    },
-  ];
+    const endStr = now.toISOString().split("T")[0];
+    setToDate(endStr);
 
-  // Recent Orders table
-  const recentOrders = [
-    { id: "#1087", customer: "Riya Sharma", amount: "895", status: "Delivered", date: "8 Oct, 04:12 PM" },
-    { id: "#1086", customer: "Aarav Mehta", amount: "1,240", status: "Out for Delivery", date: "8 Oct, 11:30 AM" },
-    { id: "#1085", customer: "Sneha Verma", amount: "560", status: "Processing", date: "7 Oct, 07:45 PM" },
-    { id: "#1084", customer: "Karan Gupta", amount: "1,320", status: "Delivered", date: "7 Oct, 12:10 PM" },
-    { id: "#1083", customer: "Ishita Nair", amount: "745", status: "Cancelled", date: "6 Oct, 09:18 PM" },
-  ];
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "Delivered":
-        return <span className="px-2.5 py-1 text-xs font-semibold rounded-md bg-[#DCF2DE] text-[#1E743A]">Delivered</span>;
-      case "Out for Delivery":
-        return <span className="px-2.5 py-1 text-xs font-semibold rounded-md bg-[#FFF0D4] text-[#B07212]">Out for Delivery</span>;
-      case "Processing":
-        return <span className="px-2.5 py-1 text-xs font-semibold rounded-md bg-[#E1EDFF] text-[#2462BD]">Processing</span>;
-      case "Cancelled":
-        return <span className="px-2.5 py-1 text-xs font-semibold rounded-md bg-[#FFE4E4] text-[#CF2C2C]">Cancelled</span>;
-      default:
-        return <span className="px-2.5 py-1 text-xs font-semibold rounded-md bg-stone-100 text-stone-700">{status}</span>;
+    if (preset === "7d") {
+      const start = new Date(now);
+      start.setDate(now.getDate() - 7);
+      setFromDate(start.toISOString().split("T")[0]);
+    } else if (preset === "30d") {
+      const start = new Date(now);
+      start.setDate(now.getDate() - 30);
+      setFromDate(start.toISOString().split("T")[0]);
+    } else if (preset === "ytd") {
+      const start = new Date(now.getFullYear(), 0, 1);
+      setFromDate(start.toISOString().split("T")[0]);
     }
   };
 
-  // Helper for donut chart SVG path arcs
-  const createDonutSegments = (items: { pct: number; color: string }[], radius: number, strokeWidth: number) => {
-    const circumference = 2 * Math.PI * radius;
-    let accumulatedOffset = 0;
+  const loadReports = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
-    return items.map((item, idx) => {
-      const strokeDasharray = `${(item.pct / 100) * circumference} ${circumference}`;
-      const strokeDashoffset = -accumulatedOffset;
-      accumulatedOffset += (item.pct / 100) * circumference;
+    const salesParams = new URLSearchParams();
+    if (fromDate) salesParams.append("from", fromDate);
+    if (toDate) salesParams.append("to", toDate);
+    const salesQuery = salesParams.toString() ? `?${salesParams.toString()}` : "";
 
-      return (
-        <circle
-          key={idx}
-          cx="80"
-          cy="80"
-          r={radius}
-          fill="transparent"
-          stroke={item.color}
-          strokeWidth={strokeWidth}
-          strokeDasharray={strokeDasharray}
-          strokeDashoffset={strokeDashoffset}
-          transform="rotate(-90 80 80)"
-        />
-      );
+    try {
+      const [salesRes, dashRes, ordersRes] = await Promise.all([
+        fetchApi<ProductSalePerformance[]>(`/api/reports/sales${salesQuery}`),
+        fetchApi<DashboardReportsData>("/api/reports/dashboard"),
+        fetchApi<OrderSummary[]>("/api/orders").catch(() => []),
+      ]);
+
+      setSalesData(Array.isArray(salesRes) ? salesRes : []);
+      setDashboardData(dashRes);
+      setAllOrders(Array.isArray(ordersRes) ? ordersRes : []);
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        setError(err.message || "Failed to load reports from the analytics service.");
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unexpected error occurred while fetching analytics.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [fromDate, toDate]);
+
+  useEffect(() => {
+    loadReports();
+  }, [loadReports]);
+
+  // Aggregate orders for the trend chart within the selected date range
+  const trendPoints: DailyTrendPoint[] = useMemo(() => {
+    if (!allOrders || allOrders.length === 0) return [];
+
+    let filtered = allOrders;
+
+    if (fromDate) {
+      const fromTime = new Date(fromDate).getTime();
+      filtered = filtered.filter((o) => new Date(o.orderDate).getTime() >= fromTime);
+    }
+    if (toDate) {
+      const toTime = new Date(`${toDate}T23:59:59`).getTime();
+      filtered = filtered.filter((o) => new Date(o.orderDate).getTime() <= toTime);
+    }
+
+    const grouped: Record<string, { orders: number; revenue: number; rawDate: Date }> = {};
+
+    filtered.forEach((o) => {
+      const d = new Date(o.orderDate);
+      if (isNaN(d.getTime())) return;
+      const key = d.toISOString().split("T")[0];
+
+      if (!grouped[key]) {
+        grouped[key] = { orders: 0, revenue: 0, rawDate: d };
+      }
+      grouped[key].orders += 1;
+      grouped[key].revenue += parseFloat(o.totalAmount) || 0;
     });
+
+    const sortedKeys = Object.keys(grouped).sort();
+    return sortedKeys.map((k) => ({
+      dateKey: k,
+      label: grouped[k].rawDate.toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
+      orders: grouped[k].orders,
+      revenue: Math.round(grouped[k].revenue),
+    }));
+  }, [allOrders, fromDate, toDate]);
+
+  // Summary Metrics calculated from period sales data
+  const periodMetrics = useMemo(() => {
+    const totalSalesRevenue = salesData.reduce((acc, curr) => acc + (parseFloat(curr.totalRevenue) || 0), 0);
+    const totalUnitsSold = salesData.reduce((acc, curr) => acc + (Number(curr.totalQty) || 0), 0);
+    const topProduct = salesData.length > 0 ? salesData[0] : null;
+
+    return {
+      totalSalesRevenue,
+      totalUnitsSold,
+      topProduct,
+      uniqueProductsSold: salesData.length,
+    };
+  }, [salesData]);
+
+  // Order status distribution
+  const statusDistribution = useMemo(() => {
+    if (!dashboardData?.ordersByStatus) return [];
+    const total = dashboardData.ordersByStatus.reduce((acc, curr) => acc + curr.count, 0);
+
+    return dashboardData.ordersByStatus.map((item) => {
+      const pct = total > 0 ? Math.round((item.count / total) * 100) : 0;
+      return {
+        ...item,
+        percentage: pct,
+      };
+    });
+  }, [dashboardData]);
+
+  const getStatusColor = (status: OrderStatus) => {
+    switch (status) {
+      case "Delivered":
+        return { barBg: "bg-emerald-500", text: "text-emerald-700", icon: CheckCircle2 };
+      case "Shipped":
+        return { barBg: "bg-indigo-500", text: "text-indigo-700", icon: Truck };
+      case "Confirmed":
+        return { barBg: "bg-blue-500", text: "text-blue-700", icon: CheckCircle2 };
+      case "Pending":
+        return { barBg: "bg-amber-500", text: "text-amber-700", icon: Clock };
+      case "Cancelled":
+        return { barBg: "bg-rose-500", text: "text-rose-700", icon: XCircle };
+      default:
+        return { barBg: "bg-slate-400", text: "text-slate-700", icon: Clock };
+    }
   };
 
   return (
-    <div className="space-y-7">
-      {/* Page Title & Subtitle */}
+    <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-[#14231B]">
-            Reports &amp; <span className="text-[#207B4A]">Analytics</span>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+            <BarChart3 className="text-indigo-600" size={26} />
+            Reports & Analytics
           </h1>
-          <p className="text-sm text-[#66766B] mt-1">
-            Get insights into your store&apos;s sales, inventory and customer activity.
+          <p className="text-sm text-slate-500 mt-0.5">
+            Verified financial reports, product performance metrics, and sales trends.
           </p>
         </div>
 
-        {/* Date Selector Pill */}
-        <div className="flex items-center gap-3 bg-white border border-[#E9E2D5] rounded-2xl px-4 py-2.5 shadow-xs self-start sm:self-auto cursor-pointer hover:border-stone-300 transition-colors">
-          <Calendar className="w-4 h-4 text-[#4A5D50]" />
-          <span className="text-xs font-semibold text-[#14231B]">{timeRange}</span>
-          <ChevronDown className="w-3.5 h-3.5 text-[#7D8F82] ml-1" />
+        <button
+          onClick={() => loadReports()}
+          disabled={loading}
+          className="inline-flex items-center gap-2 self-start sm:self-auto px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 shadow-2xs transition-all disabled:opacity-60"
+        >
+          <RefreshCw size={14} className={loading ? "animate-spin text-indigo-600" : "text-slate-500"} />
+          Refresh Data
+        </button>
+      </div>
+
+      {/* Date Range & Preset Filter Bar */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-2xs space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          {/* Quick Presets */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mr-1">
+              Period:
+            </span>
+            <button
+              onClick={() => applyPreset("all")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activePreset === "all"
+                  ? "bg-indigo-600 text-white shadow-2xs"
+                  : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              All Time
+            </button>
+            <button
+              onClick={() => applyPreset("7d")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activePreset === "7d"
+                  ? "bg-indigo-600 text-white shadow-2xs"
+                  : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              Last 7 Days
+            </button>
+            <button
+              onClick={() => applyPreset("30d")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activePreset === "30d"
+                  ? "bg-indigo-600 text-white shadow-2xs"
+                  : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              Last 30 Days
+            </button>
+            <button
+              onClick={() => applyPreset("ytd")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activePreset === "ytd"
+                  ? "bg-indigo-600 text-white shadow-2xs"
+                  : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              Year to Date
+            </button>
+          </div>
+
+          {/* Custom Date Pickers */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 text-xs text-slate-600">
+              <Calendar size={14} className="text-slate-400" />
+              <span>From:</span>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => {
+                  setFromDate(e.target.value);
+                  setActivePreset("custom");
+                }}
+                className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:bg-white focus:border-indigo-500"
+              />
+            </div>
+
+            <div className="flex items-center gap-1 text-xs text-slate-600">
+              <span>To:</span>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => {
+                  setToDate(e.target.value);
+                  setActivePreset("custom");
+                }}
+                className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:bg-white focus:border-indigo-500"
+              />
+            </div>
+
+            {(fromDate || toDate) && (
+              <button
+                onClick={() => applyPreset("all")}
+                className="text-xs text-slate-400 hover:text-slate-600 px-2 py-1"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* 4 KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Total Revenue */}
-        <div className="bg-white rounded-3xl p-6 border border-[#EBE4D6] shadow-xs flex items-center gap-5">
-          <div className="w-14 h-14 rounded-2xl bg-[#E6F3E6] flex items-center justify-center shrink-0">
-            <span className="text-2xl font-black text-[#207B4A]">₹</span>
+      {/* Error Banner */}
+      {error && (
+        <div
+          role="alert"
+          className="bg-rose-50 border border-rose-200 rounded-2xl p-6 shadow-sm flex items-start gap-3.5 text-rose-800"
+        >
+          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold">Analytics Error</h3>
+            <p className="text-xs text-rose-700 mt-0.5">{error}</p>
+            <button
+              onClick={() => loadReports()}
+              className="mt-3 text-xs font-semibold text-rose-700 hover:text-rose-900 underline"
+            >
+              Retry loading report data
+            </button>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-[#66766B]">Total Revenue</p>
-            <p className="text-2xl font-black text-[#14231B] mt-0.5">₹{totalRevenue}</p>
-            <div className="flex items-center gap-1.5 mt-1.5 text-xs text-[#66766B]">
-              <span className="flex items-center text-[#207B4A] font-semibold">
-                ↑ 18%
-              </span>
-              <span>vs previous month</span>
+        </div>
+      )}
+
+      {/* Period Summary KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="bg-white p-6 rounded-2xl shadow-2xs border border-slate-200/90 flex flex-col justify-between">
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600">
+              <DollarSign size={22} />
             </div>
+          </div>
+          <div>
+            <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+              Period Product Revenue
+            </h3>
+            <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1">
+              {formatINR(periodMetrics.totalSalesRevenue)}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              {fromDate || toDate ? "Filtered timeframe" : "All recorded sales"}
+            </p>
           </div>
         </div>
 
-        {/* Total Orders */}
-        <div className="bg-white rounded-3xl p-6 border border-[#EBE4D6] shadow-xs flex items-center gap-5">
-          <div className="w-14 h-14 rounded-2xl bg-[#EBF3FE] flex items-center justify-center shrink-0">
-            <Box className="w-6 h-6 text-[#3173DC]" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-[#66766B]">Total Orders</p>
-            <p className="text-2xl font-black text-[#14231B] mt-0.5">{totalOrders}</p>
-            <div className="flex items-center gap-1.5 mt-1.5 text-xs text-[#66766B]">
-              <span className="flex items-center text-[#207B4A] font-semibold">
-                ↑ 12%
-              </span>
-              <span>vs previous month</span>
+        <div className="bg-white p-6 rounded-2xl shadow-2xs border border-slate-200/90 flex flex-col justify-between">
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600">
+              <ShoppingBag size={22} />
             </div>
+          </div>
+          <div>
+            <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+              Total Units Sold
+            </h3>
+            <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1">
+              {periodMetrics.totalUnitsSold.toLocaleString()}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">Items fulfilled across orders</p>
           </div>
         </div>
 
-        {/* Total Customers */}
-        <div className="bg-white rounded-3xl p-6 border border-[#EBE4D6] shadow-xs flex items-center gap-5">
-          <div className="w-14 h-14 rounded-2xl bg-[#FEEFEA] flex items-center justify-center shrink-0">
-            <Users className="w-6 h-6 text-[#E45E36]" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-[#66766B]">Total Customers</p>
-            <p className="text-2xl font-black text-[#14231B] mt-0.5">{totalCustomers}</p>
-            <div className="flex items-center gap-1.5 mt-1.5 text-xs text-[#66766B]">
-              <span className="flex items-center text-[#207B4A] font-semibold">
-                ↑ 10%
-              </span>
-              <span>vs previous month</span>
+        <div className="bg-white p-6 rounded-2xl shadow-2xs border border-slate-200/90 flex flex-col justify-between">
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 rounded-xl bg-purple-50 border border-purple-100 text-purple-600">
+              <Package size={22} />
             </div>
+          </div>
+          <div>
+            <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+              Active Products Sold
+            </h3>
+            <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1">
+              {periodMetrics.uniqueProductsSold.toLocaleString()}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">Catalog items with sales activity</p>
           </div>
         </div>
 
-        {/* Average Order Value */}
-        <div className="bg-white rounded-3xl p-6 border border-[#EBE4D6] shadow-xs flex items-center gap-5">
-          <div className="w-14 h-14 rounded-2xl bg-[#FEF6E9] flex items-center justify-center shrink-0">
-            <Box className="w-6 h-6 text-[#D9822B]" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-[#66766B]">Average Order Value</p>
-            <p className="text-2xl font-black text-[#14231B] mt-0.5">₹{averageOrderValue}</p>
-            <div className="flex items-center gap-1.5 mt-1.5 text-xs text-[#66766B]">
-              <span className="flex items-center text-[#207B4A] font-semibold">
-                ↑ 8%
-              </span>
-              <span>vs previous month</span>
+        <div className="bg-white p-6 rounded-2xl shadow-2xs border border-slate-200/90 flex flex-col justify-between">
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 text-amber-600">
+              <Award size={22} />
             </div>
+          </div>
+          <div>
+            <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+              Top Selling Item
+            </h3>
+            <p className="text-lg font-bold text-slate-900 tracking-tight mt-1 truncate">
+              {periodMetrics.topProduct?.productName || "None"}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              {periodMetrics.topProduct
+                ? `${periodMetrics.topProduct.totalQty} units • ${formatINR(periodMetrics.topProduct.totalRevenue)}`
+                : "No sales recorded"}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Row 2: Sales Trend (Left 7 cols) & Category-wise Sales Donut (Right 5 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Sales Trend Line Chart */}
-        <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-[#EBE4D6] shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-4">
+      {/* Middle Row: Revenue & Order Trends Chart (2 Cols) + Order Status Distribution (1 Col) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Trend Chart */}
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-2xs border border-slate-200/90 p-6 flex flex-col justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
             <div>
-              <h2 className="text-base font-bold text-[#14231B]">Sales Trend</h2>
-              <p className="text-xs text-[#7D8F82]">Total revenue for the last 7 days.</p>
+              <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <TrendingUp size={18} className="text-indigo-600" />
+                Revenue & Order Volume Trend
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Daily timeline aggregated from verified customer orders
+              </p>
             </div>
-            <div className="flex items-center gap-1.5 bg-[#FAF7F2] border border-[#EAE2D4] px-3 py-1.5 rounded-full text-xs font-medium text-[#4A5D50] cursor-pointer">
-              <span>Last 7 Days</span>
-              <ChevronDown className="w-3.5 h-3.5" />
-            </div>
-          </div>
 
-          <div className="w-full h-56 relative pt-2">
-            <svg viewBox="0 0 600 230" className="w-full h-full overflow-visible">
-              <defs>
-                <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#207B4A" stopOpacity="0.22" />
-                  <stop offset="100%" stopColor="#207B4A" stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-
-              <line x1="30" y1="30" x2="570" y2="30" stroke="#F0EBE1" strokeWidth="1" />
-              <line x1="30" y1="85" x2="570" y2="85" stroke="#F0EBE1" strokeWidth="1" />
-              <line x1="30" y1="140" x2="570" y2="140" stroke="#F0EBE1" strokeWidth="1" />
-              <line x1="30" y1="195" x2="570" y2="195" stroke="#F0EBE1" strokeWidth="1" />
-
-              <text x="2" y="34" className="text-[10px] fill-[#8B9B90]">20K</text>
-              <text x="2" y="89" className="text-[10px] fill-[#8B9B90]">15K</text>
-              <text x="2" y="144" className="text-[10px] fill-[#8B9B90]">10K</text>
-              <text x="8" y="199" className="text-[10px] fill-[#8B9B90]">5K</text>
-
-              <path
-                d="M 30,155 Q 70,148 105,140 T 180,100 T 255,122 T 330,82 T 405,40 T 480,88 T 555,55 L 555,200 L 30,200 Z"
-                fill="url(#trendGradient)"
-              />
-              <path
-                d="M 30,155 Q 70,148 105,140 T 180,100 T 255,122 T 330,82 T 405,40 T 480,88 T 555,55"
-                fill="none"
-                stroke="#207B4A"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-
-              {[
-                { x: 30, y: 155, label: "2 Oct" },
-                { x: 105, y: 140, label: "3 Oct" },
-                { x: 180, y: 100, label: "4 Oct" },
-                { x: 255, y: 122, label: "5 Oct" },
-                { x: 330, y: 82, label: "6 Oct" },
-                { x: 405, y: 40, label: "7 Oct" },
-                { x: 480, y: 88, label: "8 Oct" },
-                { x: 555, y: 55, label: "9 Oct" },
-              ].map((pt, i) => (
-                <g key={i}>
-                  <circle cx={pt.x} cy={pt.y} r="4" fill="#207B4A" stroke="#FFFFFF" strokeWidth="2" />
-                  <text x={pt.x} y="222" textAnchor="middle" className="text-[11px] fill-[#7D8F82]">
-                    {pt.label}
-                  </text>
-                </g>
-              ))}
-            </svg>
-          </div>
-        </div>
-
-        {/* Category-wise Sales (Donut + Legend) */}
-        <div className="lg:col-span-5 bg-white rounded-3xl p-6 border border-[#EBE4D6] shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <h2 className="text-base font-bold text-[#14231B]">Category-wise Sales</h2>
-              <p className="text-xs text-[#7D8F82]">Sales distribution across product categories.</p>
-            </div>
-            <div className="flex items-center gap-1.5 bg-[#FAF7F2] border border-[#EAE2D4] px-3 py-1.5 rounded-full text-xs font-medium text-[#4A5D50] cursor-pointer">
-              <span>Last 30 Days</span>
-              <ChevronDown className="w-3.5 h-3.5" />
+            <div className="inline-flex p-1 bg-slate-100 rounded-xl text-xs font-medium">
+              <button
+                onClick={() => setTrendMetric("revenue")}
+                className={`px-3 py-1.5 rounded-lg transition-all ${
+                  trendMetric === "revenue"
+                    ? "bg-white text-indigo-700 shadow-2xs font-semibold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Revenue
+              </button>
+              <button
+                onClick={() => setTrendMetric("orders")}
+                className={`px-3 py-1.5 rounded-lg transition-all ${
+                  trendMetric === "orders"
+                    ? "bg-white text-indigo-700 shadow-2xs font-semibold"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Orders
+              </button>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6 py-2">
-            {/* Donut SVG */}
-            <div className="relative w-40 h-40 shrink-0 flex items-center justify-center">
-              <svg viewBox="0 0 160 160" className="w-full h-full">
-                {createDonutSegments(categorySales, 55, 22)}
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-xs font-bold text-[#14231B]">₹24,560</span>
-                <span className="text-[10px] text-[#7D8F82]">Total Sales</span>
+          {/* Chart Graphic */}
+          {trendPoints.length > 0 ? (
+            <div className="space-y-4">
+              <div className="relative h-48 w-full flex items-end justify-between gap-2 pt-6 pb-2 px-2">
+                <div className="absolute inset-x-0 top-6 border-b border-dashed border-slate-100 pointer-events-none" />
+                <div className="absolute inset-x-0 top-1/2 border-b border-dashed border-slate-100 pointer-events-none" />
+                <div className="absolute inset-x-0 bottom-2 border-b border-slate-200 pointer-events-none" />
+
+                {(() => {
+                  const maxVal = Math.max(
+                    ...trendPoints.map((p) => (trendMetric === "revenue" ? p.revenue : p.orders)),
+                    1
+                  );
+
+                  return trendPoints.map((pt) => {
+                    const currentVal = trendMetric === "revenue" ? pt.revenue : pt.orders;
+                    const heightPct = Math.max(Math.round((currentVal / maxVal) * 100), 6);
+
+                    return (
+                      <div
+                        key={pt.dateKey}
+                        className="flex-1 flex flex-col items-center h-full justify-end relative cursor-pointer"
+                        onMouseEnter={() => setHoveredPoint(pt)}
+                        onMouseLeave={() => setHoveredPoint(null)}
+                      >
+                        <div
+                          style={{ height: `${heightPct}%` }}
+                          className={`w-full max-w-[36px] rounded-t-lg transition-all duration-300 ${
+                            hoveredPoint?.dateKey === pt.dateKey
+                              ? "bg-indigo-600 shadow-md shadow-indigo-200 scale-105"
+                              : "bg-indigo-100 hover:bg-indigo-200"
+                          }`}
+                        />
+                        <span className="text-[10px] font-medium text-slate-500 mt-2 block truncate max-w-[48px]">
+                          {pt.label}
+                        </span>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* Point Inspector */}
+              <div className="h-6 flex items-center justify-between text-xs text-slate-500 border-t border-slate-100 pt-3">
+                {hoveredPoint ? (
+                  <>
+                    <span className="font-medium text-slate-700">{hoveredPoint.label}:</span>
+                    <span className="font-bold text-indigo-600">
+                      {trendMetric === "revenue"
+                        ? formatINR(hoveredPoint.revenue)
+                        : `${hoveredPoint.orders} order${hoveredPoint.orders === 1 ? "" : "s"}`}
+                    </span>
+                  </>
+                ) : (
+                  <span className="italic text-slate-400">
+                    Hover over bars to inspect daily financial totals.
+                  </span>
+                )}
               </div>
             </div>
-
-            {/* Legend list */}
-            <div className="flex-1 w-full space-y-2 text-xs">
-              {categorySales.map((cat) => (
-                <div key={cat.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: cat.color }}
-                    />
-                    <span className="font-medium text-[#4A5D50]">{cat.name}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 font-bold text-[#14231B]">
-                    <span>₹{cat.amount}</span>
-                    <span className="text-[#7D8F82] font-normal text-[11px]">({cat.pct}%)</span>
-                  </div>
-                </div>
-              ))}
+          ) : (
+            <div className="h-48 rounded-xl bg-slate-50 border border-slate-100 flex flex-col items-center justify-center text-slate-400 gap-2">
+              <Calendar size={24} />
+              <p className="text-xs">No orders recorded in the selected period.</p>
             </div>
+          )}
+        </div>
+
+        {/* Order Status Breakdown */}
+        <div className="bg-white rounded-2xl shadow-2xs border border-slate-200/90 p-6 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <PieChart size={18} className="text-indigo-600" />
+                Order Statuses
+              </h2>
+              <span className="text-xs text-slate-400 font-medium">
+                {dashboardData?.totalOrders ?? 0} Total
+              </span>
+            </div>
+
+            {statusDistribution.length > 0 ? (
+              <div className="space-y-4">
+                <div className="w-full h-3 rounded-full bg-slate-100 overflow-hidden flex shadow-2xs">
+                  {statusDistribution.map((item) => {
+                    const style = getStatusColor(item.status);
+                    return (
+                      <div
+                        key={item.status}
+                        style={{ width: `${item.percentage}%` }}
+                        className={`${style.barBg} transition-all`}
+                        title={`${item.status}: ${item.count} (${item.percentage}%)`}
+                      />
+                    );
+                  })}
+                </div>
+
+                <div className="space-y-2.5 pt-2">
+                  {statusDistribution.map((item) => {
+                    const style = getStatusColor(item.status);
+                    const StatusIcon = style.icon;
+
+                    return (
+                      <div
+                        key={item.status}
+                        className="flex items-center justify-between text-xs p-2.5 rounded-xl bg-slate-50/70 border border-slate-100"
+                      >
+                        <div className="flex items-center gap-2">
+                          <StatusIcon size={14} className={style.text} />
+                          <span className="font-semibold text-slate-700">{item.status}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900">{item.count}</span>
+                          <span className="text-[11px] text-slate-400">({item.percentage}%)</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="py-12 text-center text-xs text-slate-400">
+                No status breakdown data available.
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Row 3: Top Selling Products (Left 7 cols) & Order Status Overview + Recent Orders (Right 5 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Top Selling Products Table */}
-        <div className="lg:col-span-7 bg-white rounded-3xl p-6 border border-[#EBE4D6] shadow-xs">
-          <div className="mb-4">
-            <h2 className="text-base font-bold text-[#14231B]">Top Selling Products</h2>
-            <p className="text-xs text-[#7D8F82]">Products with highest units sold.</p>
+      {/* Product Performance Table */}
+      <div className="bg-white rounded-2xl shadow-2xs border border-slate-200/90 overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">Product Sales Performance</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Ranked by revenue contribution from <code>/api/reports/sales</code>
+            </p>
           </div>
+          <span className="text-xs text-slate-400">
+            {salesData.length} item{salesData.length === 1 ? "" : "s"} with sales
+          </span>
+        </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead>
-                <tr className="text-[#7D8F82] border-b border-[#F0EBE1] font-medium">
-                  <th className="pb-3 w-8">#</th>
-                  <th className="pb-3 font-medium">Product</th>
-                  <th className="pb-3 font-medium">Category</th>
-                  <th className="pb-3 text-center font-medium">Units Sold</th>
-                  <th className="pb-3 text-right font-medium">Revenue (₹)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#F6F2EC]">
-                {topProducts.map((p) => (
-                  <tr key={p.rank} className="hover:bg-[#FAF7F2]/60 transition-colors">
-                    <td className="py-3 font-bold text-[#7D8F82]">{p.rank}.</td>
-                    <td className="py-3">
-                      <div className="flex items-center gap-2.5">
-                        <img
-                          src={p.image}
-                          alt={p.name}
-                          className="w-8 h-8 rounded-md object-contain bg-stone-50 border border-stone-200"
-                        />
-                        <span className="font-semibold text-[#14231B]">{p.name}</span>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-left">
+            <thead className="bg-slate-50/70 text-slate-500 text-[11px] uppercase tracking-wider border-b border-slate-100">
+              <tr>
+                <th className="px-6 py-3.5 font-semibold w-16">Rank</th>
+                <th className="px-6 py-3.5 font-semibold">Product Name</th>
+                <th className="px-6 py-3.5 font-semibold">Units Sold</th>
+                <th className="px-6 py-3.5 font-semibold">Total Revenue</th>
+                <th className="px-6 py-3.5 font-semibold w-48">Share of Period Sales</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {salesData.map((item, index) => {
+                const totalPeriodRev = periodMetrics.totalSalesRevenue;
+                const itemRev = parseFloat(item.totalRevenue) || 0;
+                const sharePct = totalPeriodRev > 0 ? Math.round((itemRev / totalPeriodRev) * 100) : 0;
+
+                return (
+                  <tr key={item.productId} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="px-6 py-4 font-bold text-slate-400">
+                      #{index + 1}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-slate-900">{item.productName}</div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">ID #{item.productId}</div>
+                    </td>
+                    <td className="px-6 py-4 font-bold text-slate-800">
+                      {item.totalQty.toLocaleString()} units
+                    </td>
+                    <td className="px-6 py-4 font-bold text-slate-900">
+                      {formatINR(item.totalRevenue)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[11px] text-slate-500 font-medium">
+                          <span>{sharePct}%</span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                          <div
+                            style={{ width: `${sharePct}%` }}
+                            className="h-full bg-indigo-600 rounded-full"
+                          />
+                        </div>
                       </div>
                     </td>
-                    <td className="py-3 font-medium text-[#4A5D50]">{p.category}</td>
-                    <td className="py-3 text-center font-bold text-[#14231B]">{p.units}</td>
-                    <td className="py-3 text-right font-bold text-[#14231B]">{p.revenue}</td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                );
+              })}
 
-        {/* Right side: Order Status Overview + Recent Orders */}
-        <div className="lg:col-span-5 space-y-6">
-          {/* Order Status Donut Card */}
-          <div className="bg-white rounded-3xl p-6 border border-[#EBE4D6] shadow-xs">
-            <div className="mb-3">
-              <h2 className="text-base font-bold text-[#14231B]">Order Status Overview</h2>
-              <p className="text-xs text-[#7D8F82]">Distribution of order statuses.</p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-6 py-2">
-              <div className="relative w-36 h-36 shrink-0 flex items-center justify-center">
-                <svg viewBox="0 0 160 160" className="w-full h-full">
-                  {createDonutSegments(orderStatuses, 52, 20)}
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <span className="text-base font-extrabold text-[#14231B]">128</span>
-                  <span className="text-[10px] text-[#7D8F82]">Total Orders</span>
-                </div>
-              </div>
-
-              <div className="flex-1 w-full space-y-2 text-xs">
-                {orderStatuses.map((st) => (
-                  <div key={st.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: st.color }}
-                      />
-                      <span className="font-medium text-[#4A5D50]">{st.name}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 font-bold text-[#14231B]">
-                      <span>{st.count}</span>
-                      <span className="text-[#7D8F82] font-normal text-[11px]">({st.pct}%)</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Orders small table */}
-          <div className="bg-white rounded-3xl p-6 border border-[#EBE4D6] shadow-xs">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-bold text-[#14231B]">Recent Orders</h2>
-              <Link href="/admin/orders" className="text-xs font-semibold text-[#207B4A] hover:underline">
-                View All
-              </Link>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead>
-                  <tr className="text-[#7D8F82] border-b border-[#F0EBE1] font-medium">
-                    <th className="pb-2 font-medium">Order ID</th>
-                    <th className="pb-2 font-medium">Customer</th>
-                    <th className="pb-2 font-medium">Amount (₹)</th>
-                    <th className="pb-2 text-center font-medium">Status</th>
-                    <th className="pb-2 text-right font-medium">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#F6F2EC]">
-                  {recentOrders.map((ord, idx) => (
-                    <tr key={idx} className="hover:bg-[#FAF7F2]/60 transition-colors">
-                      <td className="py-2.5 font-bold text-[#14231B]">{ord.id}</td>
-                      <td className="py-2.5 font-medium text-[#14231B]">{ord.customer}</td>
-                      <td className="py-2.5 font-bold text-[#14231B]">{ord.amount}</td>
-                      <td className="py-2.5 text-center">{getStatusBadge(ord.status)}</td>
-                      <td className="py-2.5 text-right text-[#7D8F82]">{ord.date}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+              {salesData.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                    No product sales registered for the selected date range.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
