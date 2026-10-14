@@ -2,6 +2,7 @@ import {
   pgTable,
   serial,
   varchar,
+  text,
   integer,
   decimal,
   date,
@@ -11,7 +12,6 @@ import {
   unique,
   index,
   check,
-  foreignKey,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -48,25 +48,121 @@ export const supplierOrderStatusEnum = pgEnum("supplier_order_status", [
 ]);
 
 // =========================================================
-// 1. ADMIN
+// BETTER AUTH TABLES (user, session, account, verification)
+// Managed by Better Auth. Customers AND admins both live in "user";
+// the `role` column tells them apart. Passwords are stored (hashed by
+// Better Auth) in account.password, never in our own tables.
 // =========================================================
-// Single admin type: every admin has full access (no roles).
+export const user = pgTable(
+  "user",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    image: text("image"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+    // Custom field: 'customer' (default) or 'admin'. Never settable from sign-up.
+    role: text("role").notNull().default("customer"),
+  },
+  (t) => ({
+    roleCheck: check("user_role_check", sql`${t.role} IN ('customer', 'admin')`),
+  })
+);
+
+export const session = pgTable(
+  "session",
+  {
+    id: text("id").primaryKey(),
+    expiresAt: timestamp("expires_at").notNull(),
+    token: text("token").notNull().unique(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  (t) => ({
+    userIdx: index("session_user_idx").on(t.userId),
+  })
+);
+
+export const account = pgTable(
+  "account",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(), // 'credential' for email + password
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at"),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+    scope: text("scope"),
+    password: text("password"), // password hash lives here
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    userIdx: index("account_user_idx").on(t.userId),
+  })
+);
+
+export const verification = pgTable(
+  "verification",
+  {
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at")
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    identifierIdx: index("verification_identifier_idx").on(t.identifier),
+  })
+);
+
+// =========================================================
+// 1. ADMIN (profile row for a user whose role = 'admin')
+// =========================================================
 export const admin = pgTable("admin", {
   adminId: serial("admin_id").primaryKey(),
-  name: varchar("name", { length: 100 }).notNull(),
-  email: varchar("email", { length: 100 }).notNull().unique(),
-  password: varchar("password", { length: 255 }).notNull(), // bcrypt hash
+  userId: text("user_id")
+    .notNull()
+    .unique()
+    .references(() => user.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // =========================================================
-// 2. CUSTOMER
+// 2. CUSTOMER (profile row for a user whose role = 'customer')
+// name / email / password now live on "user" and "account".
 // =========================================================
 export const customer = pgTable("customer", {
   customerId: serial("customer_id").primaryKey(),
-  name: varchar("name", { length: 100 }).notNull(),
-  email: varchar("email", { length: 100 }).notNull().unique(),
-  password: varchar("password", { length: 255 }).notNull(), // bcrypt hash
+  userId: text("user_id")
+    .notNull()
+    .unique()
+    .references(() => user.id, { onDelete: "cascade" }),
   phone: varchar("phone", { length: 15 }),
   address: varchar("address", { length: 255 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -278,7 +374,9 @@ export const supplierOrderItem = pgTable(
   "supplier_order_item",
   {
     supplierOrderItemId: serial("supplier_order_item_id").primaryKey(),
-    supplierOrderId: integer("supplier_order_id").notNull(),
+    supplierOrderId: integer("supplier_order_id")
+      .notNull()
+      .references(() => supplierOrder.supplierOrderId, { onDelete: "cascade" }),
     productId: integer("product_id")
       .notNull()
       .references(() => product.productId, { onDelete: "restrict" }),
@@ -286,11 +384,6 @@ export const supplierOrderItem = pgTable(
     unitCost: decimal("unit_cost", { precision: 10, scale: 2 }).notNull(), // cost price at time of ordering
   },
   (t) => ({
-    supplierOrderFk: foreignKey({
-      columns: [t.supplierOrderId],
-      foreignColumns: [supplierOrder.supplierOrderId],
-      name: "supplier_order_item_order_fk",
-    }).onDelete("cascade"),
     quantityPos: check("supplier_order_item_qty_pos", sql`${t.quantity} > 0`),
     costNonNeg: check("supplier_order_item_cost_nonneg", sql`${t.unitCost} >= 0`),
     orderIdx: index("supplier_order_item_order_idx").on(t.supplierOrderId),
@@ -303,7 +396,23 @@ export const supplierOrderItem = pgTable(
 // Rule: every many() has a matching one() on the other side.
 // For 1-to-1, the one() WITH fields/references goes on the table holding the FK.
 // =========================================================
-export const adminRelations = relations(admin, ({ many }) => ({
+export const userRelations = relations(user, ({ one, many }) => ({
+  sessions: many(session),
+  accounts: many(account),
+  customer: one(customer), // FK lives on customer
+  admin: one(admin), // FK lives on admin
+}));
+
+export const sessionRelations = relations(session, ({ one }) => ({
+  user: one(user, { fields: [session.userId], references: [user.id] }),
+}));
+
+export const accountRelations = relations(account, ({ one }) => ({
+  user: one(user, { fields: [account.userId], references: [user.id] }),
+}));
+
+export const adminRelations = relations(admin, ({ one, many }) => ({
+  user: one(user, { fields: [admin.userId], references: [user.id] }),
   categories: many(category),
   suppliers: many(supplier),
   products: many(product),
@@ -353,7 +462,8 @@ export const inventoryRelations = relations(inventory, ({ one }) => ({
   }),
 }));
 
-export const customerRelations = relations(customer, ({ many }) => ({
+export const customerRelations = relations(customer, ({ one, many }) => ({
+  user: one(user, { fields: [customer.userId], references: [user.id] }),
   orders: many(orders),
   cartItems: many(cart),
 }));
@@ -422,6 +532,12 @@ export const supplierOrderItemRelations = relations(supplierOrderItem, ({ one })
 // =========================================================
 // INFERRED TYPES
 // =========================================================
+export type User = typeof user.$inferSelect;
+export type NewUser = typeof user.$inferInsert;
+export type Session = typeof session.$inferSelect;
+export type Account = typeof account.$inferSelect;
+export type Verification = typeof verification.$inferSelect;
+
 export type Admin = typeof admin.$inferSelect;
 export type NewAdmin = typeof admin.$inferInsert;
 export type Customer = typeof customer.$inferSelect;

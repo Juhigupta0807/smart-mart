@@ -1,3 +1,5 @@
+import { isDevPreviewActive, getDevPreviewResponse } from "./dev-preview";
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -11,6 +13,15 @@ export async function fetchApi<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  // Temporary development-only UI preview mode
+  // Strictly disabled in production builds
+  if (process.env.NODE_ENV !== "production" && isDevPreviewActive()) {
+    const previewData = await getDevPreviewResponse(endpoint, options);
+    if (previewData !== undefined) {
+      return previewData as T;
+    }
+  }
+
   const url = `${process.env.NEXT_PUBLIC_API_URL}${endpoint}`;
   
   const headers = new Headers(options.headers);

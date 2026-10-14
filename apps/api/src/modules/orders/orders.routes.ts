@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, orders, orderDetails, product, customer, payment, eq, asc, desc, and, ilike } from "@smartmart/db";
+import { db, orders, orderDetails, product, customer, user, payment, eq, asc, desc, and, ilike } from "@smartmart/db";
 import { requireAdmin } from "../../middleware/auth.js";
 import { badRequest, notFound } from "../../utils/httpError.js";
 
@@ -22,11 +22,12 @@ router.get("/", async (req, res, next) => {
         totalAmount: orders.totalAmount,
         shippingAddress: orders.shippingAddress,
         customerId: orders.customerId,
-        customerName: customer.name,
-        customerEmail: customer.email,
+        customerName: user.name,
+        customerEmail: user.email,
       })
       .from(orders)
       .leftJoin(customer, eq(orders.customerId, customer.customerId))
+      .leftJoin(user, eq(customer.userId, user.id))
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(desc(orders.orderDate));
     res.json(rows);
@@ -45,11 +46,12 @@ router.get("/:id", async (req, res, next) => {
         totalAmount: orders.totalAmount,
         shippingAddress: orders.shippingAddress,
         customerId: orders.customerId,
-        customerName: customer.name,
-        customerEmail: customer.email,
+        customerName: user.name,
+        customerEmail: user.email,
       })
       .from(orders)
       .leftJoin(customer, eq(orders.customerId, customer.customerId))
+      .leftJoin(user, eq(customer.userId, user.id))
       .where(eq(orders.orderId, id));
     if (!order) return next(notFound("Order not found"));
 

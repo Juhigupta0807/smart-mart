@@ -11,6 +11,7 @@ import {
   Users, 
   Truck, 
   FileText,
+  BarChart3,
   LogOut 
 } from "lucide-react";
 import { fetchApi } from "@/lib/api";
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/suppliers", label: "Suppliers", icon: Truck },
   { href: "/admin/supplier-orders", label: "Supplier Orders", icon: FileText },
+  { href: "/admin/reports", label: "Reports", icon: BarChart3 },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

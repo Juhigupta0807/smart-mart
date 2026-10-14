@@ -3,8 +3,8 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, ShoppingBag, Menu, X, ChevronDown, User as UserIcon } from "lucide-react";
-
+import { Search, ShoppingBag, Menu, X, ChevronDown, LogOut, Shield } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
 import { useCart } from "@/context/CartContext";
 
 interface NavbarProps {
@@ -12,7 +12,6 @@ interface NavbarProps {
   onCartClick?: () => void;
   searchQuery?: string;
   onSearch?: (query: string) => void;
-  user?: { name: string; avatarUrl?: string } | null;
 }
 
 export function Navbar({
@@ -20,13 +19,14 @@ export function Navbar({
   onCartClick,
   searchQuery: controlledSearchQuery,
   onSearch,
-  user = { name: "Juhi", avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" },
 }: NavbarProps) {
+  const { data: session } = authClient.useSession();
   const { totalCount } = useCart();
   const effectiveCartCount = cartCount !== undefined ? cartCount : totalCount;
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [localSearchQuery, setLocalSearchQuery] = useState("");
 
   const activeSearchQuery = controlledSearchQuery !== undefined ? controlledSearchQuery : localSearchQuery;
@@ -66,7 +66,6 @@ export function Navbar({
                 xmlns="http://www.w3.org/2000/svg"
                 className="text-[#1E4D38]"
               >
-                {/* Cart Body */}
                 <path
                   d="M3 3H5.2L7.3 14.5C7.4 15.1 7.9 15.5 8.5 15.5H18.5C19.1 15.5 19.6 15.1 19.7 14.5L21 7.5H6"
                   stroke="#1E4D38"
@@ -76,7 +75,6 @@ export function Navbar({
                 />
                 <circle cx="9" cy="19.5" r="1.5" fill="#1E4D38" />
                 <circle cx="18" cy="19.5" r="1.5" fill="#1E4D38" />
-                {/* Fresh Sprout Leaf / Carrot Accent */}
                 <path
                   d="M14 4.5C14 4.5 16 3 18 4C18.5 6 16.5 8 16.5 8"
                   stroke="#2E7D32"
@@ -150,7 +148,7 @@ export function Navbar({
             />
           </form>
 
-          {/* Right Actions: Cart, Login, Register or Customer Area */}
+          {/* Right Actions: Cart, User Profile / Auth */}
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Cart Button */}
             <Link
@@ -167,38 +165,71 @@ export function Navbar({
               )}
             </Link>
 
-            {/* Auth Buttons or Account Dropdown */}
-            {user ? (
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-stone-200/90 shadow-2xs cursor-pointer hover:border-stone-300 transition-colors">
-                {user.avatarUrl ? (
-                  <img
-                    src={user.avatarUrl}
-                    alt={user.name}
-                    className="w-7 h-7 rounded-full object-cover border border-stone-200"
-                  />
-                ) : (
-                  <div className="w-7 h-7 rounded-full bg-[#E5EFE2] text-[#1E4D38] flex items-center justify-center font-bold text-xs">
-                    {user.name.charAt(0).toUpperCase()}
+            {/* Auth Dropdown or Login Button */}
+            {session ? (
+              <div className="relative">
+                <button
+                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-stone-200/90 shadow-2xs cursor-pointer hover:border-stone-300 transition-colors"
+                >
+                  {session.user.image ? (
+                    <img
+                      src={session.user.image}
+                      alt={session.user.name || "User"}
+                      className="w-7 h-7 rounded-full object-cover border border-stone-200"
+                    />
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-[#E5EFE2] text-[#1E4D38] flex items-center justify-center font-bold text-xs">
+                      {session.user.name ? session.user.name.charAt(0).toUpperCase() : "U"}
+                    </div>
+                  )}
+                  <span className="text-xs sm:text-sm font-semibold text-stone-800">
+                    Hi, {session.user.name?.split(" ")[0]}
+                  </span>
+                  <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
+                </button>
+
+                {userDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white border border-stone-200 rounded-xl shadow-lg py-1.5 z-50 text-sm">
+                    <div className="px-4 py-2 border-b border-stone-100">
+                      <p className="font-semibold text-stone-800 truncate">{session.user.name}</p>
+                      <p className="text-xs text-stone-500 truncate">{session.user.email}</p>
+                    </div>
+                    <Link
+                      href="/account"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="block px-4 py-2 text-stone-700 hover:bg-stone-50"
+                    >
+                      My Account
+                    </Link>
+                    {session.user.role === "admin" && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-1.5 px-4 py-2 text-red-600 font-semibold hover:bg-red-50"
+                      >
+                        <Shield className="w-4 h-4" /> Admin Panel
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => {
+                        setUserDropdownOpen(false);
+                        authClient.signOut();
+                      }}
+                      className="flex items-center gap-1.5 w-full text-left px-4 py-2 text-stone-700 hover:bg-stone-50 border-t border-stone-100"
+                    >
+                      <LogOut className="w-4 h-4" /> Sign Out
+                    </button>
                   </div>
                 )}
-                <span className="text-xs sm:text-sm font-semibold text-stone-800">
-                  Hi, {user.name}
-                </span>
-                <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
               </div>
             ) : (
               <div className="hidden sm:flex items-center gap-2">
                 <Link
-                  href="/admin/login"
+                  href="/login"
                   className="px-4 py-2 text-sm font-medium text-stone-700 bg-[#F1ECE3] hover:bg-[#E8E1D5] rounded-full transition-colors"
                 >
-                  Login
-                </Link>
-                <Link
-                  href="/admin/login"
-                  className="px-4 py-2 text-sm font-semibold text-white bg-[#1E4D38] hover:bg-[#163C2B] rounded-full shadow-xs transition-colors"
-                >
-                  Register
+                  Log In
                 </Link>
               </div>
             )}
@@ -214,7 +245,7 @@ export function Navbar({
           </div>
         </div>
 
-        {/* Mobile Search Row (visible on small mobile screens) */}
+        {/* Mobile Search Row */}
         <div className="md:hidden pb-3">
           <form onSubmit={handleSearchSubmit} className="relative">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-stone-400">
@@ -265,19 +296,44 @@ export function Navbar({
             >
               Contact
             </Link>
-            <div className="pt-2 flex items-center gap-2 sm:hidden border-t border-stone-200/50 mt-2">
-              <Link
-                href="/admin/login"
-                className="flex-1 text-center py-2 text-sm font-medium text-stone-700 bg-[#F1ECE3] rounded-full"
-              >
-                Login
-              </Link>
-              <Link
-                href="/admin/login"
-                className="flex-1 text-center py-2 text-sm font-semibold text-white bg-[#1E4D38] rounded-full shadow-xs"
-              >
-                Register
-              </Link>
+            <div className="pt-2 flex flex-col gap-2 sm:hidden border-t border-stone-200/50 mt-2">
+              {session ? (
+                <>
+                  <Link
+                    href="/account"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="px-4 py-2 text-sm font-semibold text-stone-800"
+                  >
+                    My Account ({session.user.name})
+                  </Link>
+                  {session.user.role === "admin" && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="px-4 py-2 text-sm font-semibold text-red-600"
+                    >
+                      Admin Panel
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      authClient.signOut();
+                    }}
+                    className="text-left px-4 py-2 text-sm font-medium text-stone-600"
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full text-center py-2 text-sm font-semibold text-white bg-[#1E4D38] rounded-full shadow-xs"
+                >
+                  Log In
+                </Link>
+              )}
             </div>
           </div>
         )}

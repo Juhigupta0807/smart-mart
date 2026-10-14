@@ -12,7 +12,7 @@
     "dev:web": "npm run dev -w @smartmart/web",
     "db:push": "npm run push -w @smartmart/db",
     "db:studio": "npm run studio -w @smartmart/db",
-    "db:create-admin": "npm run create-admin -w @smartmart/db",
+    "admin:create": "npm run create-admin -w @smartmart/api",
     "db:reset": "npm run reset -w @smartmart/db",
     "db:tx-check": "npm run tx-check -w @smartmart/db",
     "typecheck": "npm run typecheck -ws --if-present"

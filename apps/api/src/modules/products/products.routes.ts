@@ -62,7 +62,7 @@ router.post("/", async (req, res, next) => {
         categoryId: Number(categoryId),
         supplierId: Number(supplierId),
         isActive: isActive !== false,
-        adminId: req.admin!.adminId,
+        adminId: req.auth!.adminId!,
       }).returning();
 
       const [newInv] = await tx.insert(inventory).values({

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, orders, orderDetails, customer, product, inventory, payment, sql, eq, desc, and, gte, lte } from "@smartmart/db";
+import { db, orders, orderDetails, customer, user, product, inventory, payment, sql, eq, desc, and, gte, lte } from "@smartmart/db";
 import { requireAdmin } from "../../middleware/auth.js";
 
 const router = Router();
@@ -25,10 +25,11 @@ router.get("/dashboard", async (_req, res, next) => {
         orderDate: orders.orderDate,
         orderStatus: orders.orderStatus,
         totalAmount: orders.totalAmount,
-        customerName: customer.name,
+        customerName: user.name,
       })
       .from(orders)
       .leftJoin(customer, eq(orders.customerId, customer.customerId))
+      .leftJoin(user, eq(customer.userId, user.id))
       .orderBy(desc(orders.orderDate))
       .limit(5);
 
